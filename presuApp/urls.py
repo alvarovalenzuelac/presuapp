@@ -90,4 +90,7 @@ urlpatterns = [
     # urls para documentacion de la api
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    # urls de las alertas
+    path('alertas/leer/<int:id>/', finanzas_views.marcar_alerta_leida_view, name='marcar_alerta_leida'),
+    path('alertas/limpiar-todo/', finanzas_views.limpiar_alertas_view, name='limpiar_alertas'),
 ]

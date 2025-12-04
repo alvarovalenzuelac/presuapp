@@ -10,6 +10,7 @@ import datetime
 import calendar
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Sum
+from .models import Alerta
 
 
 # Create your views here.
@@ -374,3 +375,18 @@ def editar_presupuesto_view(request, id):
         'seleccionadas_ids': seleccionadas_ids  # <--- ¡ESTO ES LO QUE FALTABA!
     }
     return render(request, 'finanzas/editar_presupuesto.html', context)
+
+@login_required
+def marcar_alerta_leida_view(request, id):
+    alerta = get_object_or_404(Alerta, id=id, usuario=request.user)
+    alerta.leida = True
+    alerta.save()
+    
+    # Redirige a la misma página donde estaba el usuario
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+# 2. MARCAR TODAS COMO LEÍDAS (Botón "Limpiar todo")
+@login_required
+def limpiar_alertas_view(request):
+    Alerta.objects.filter(usuario=request.user, leida=False).update(leida=True)
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
