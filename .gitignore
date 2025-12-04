@@ -7,3 +7,5 @@ db.sqlite3
 .DS_Store
 .vscode/
 .env
+cheat_git.txt
+notas_django.txt
