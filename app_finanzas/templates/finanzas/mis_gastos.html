@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-receipt me-2"></i> Mis Gastos e Ingresos</h2>
+    <a href="{% url 'agregar_gasto' %}" class="btn btn-success">
+        + Nueva Transacción
+    </a>
+</div>
+
+<div class="card mb-4 shadow-sm bg-light">
+    <div class="card-body py-3">
+        <div class="row g-3 align-items-center">
+            
+            <div class="col-auto">
+                <div class="btn-group" role="group">
+                    <a href="?filtro=mes_actual" 
+                       class="btn btn-outline-primary {% if filtro_actual == 'mes_actual' %}active{% endif %}">
+                        Mes Actual
+                    </a>
+                    
+                    <a href="?filtro=ultimo_mes" 
+                       class="btn btn-outline-primary {% if filtro_actual == 'ultimo_mes' %}active{% endif %}">
+                        Mes Pasado
+                    </a>
+                    
+                    <a href="?filtro=ultimos_3" 
+                       class="btn btn-outline-primary {% if filtro_actual == 'ultimos_3' %}active{% endif %}">
+                        Últimos 3 Meses
+                    </a>
+                    
+                    <button type="button" id="btnCustom"
+                            class="btn btn-outline-primary {% if filtro_actual == 'custom' %}active{% endif %}">
+                        Personalizado...
+                    </button>
+                </div>
+            </div>
+
+            <div class="col-auto custom-range-container {% if filtro_actual != 'custom' %}d-none{% endif %}" id="customRange">
+                <form method="get" class="d-flex align-items-center" style="gap: 10px;">
+                    
+                    <input type="hidden" name="filtro" value="custom">
+                    
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">Desde</span>
+                        <input type="date" name="fecha_inicio" class="form-control" value="{{ fecha_inicio }}" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">Hasta</span>
+                        <input type="date" name="fecha_fin" class="form-control" value="{{ fecha_fin }}" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Aplicar</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<p class="text-muted mb-3">
+    Mostrando movimientos del <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+</p>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Categoría</th>
+                        <th>Subcategoría</th>
+                        <th>Descripción</th>
+                        <th>Tipo</th>
+                        <th class="text-end">Monto</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transacciones %}
+                        <tr>
+                            <td>{{ t.fecha|date:"d M Y" }}</td>
+                            
+                            <td>
+                                {% if t.categoria %}
+                                    {% if t.categoria.categoria_padre %}
+                                        <strong>{{ t.categoria.categoria_padre.nombre }}</strong>
+                                    {% else %}
+                                        <strong>{{ t.categoria.nombre }}</strong>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if t.categoria %}
+                                    {% if t.categoria.categoria_padre %}
+                                        {{ t.categoria.nombre }}
+                                    {% else %}
+                                        <span class="text-muted fst-italic">General</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+
+                            <td>{{ t.descripcion }}</td>
+                            <td>
+                                {% if t.tipo == 'INGRESO' %}
+                                    <span class="badge bg-success">Ingreso</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Gasto</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td class="text-end fw-bold {% if t.tipo == 'INGRESO' %}text-success{% else %}text-danger{% endif %}">
+                                {% if t.tipo == 'GASTO' %}-{% endif %}${{ t.monto|intcomma }}
+                            </td>
+                            <td class="text-center">
+                            <a href="{% url 'editar_gasto' t.id %}" class="btn btn-sm btn-outline-primary border-0" title="Editar">
+                                ✏️
+                            </a>
+                            
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-danger border-0"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteGastoModal"
+                                    data-url="{% url 'eliminar_gasto' t.id %}"
+                                    data-descripcion="{{ t.descripcion|default:'Sin descripción' }} - ${{ t.monto }}">
+                                🗑️
+                            </button>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                No tienes movimientos registrados aún. ¡Agrega el primero!
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="deleteGastoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">⚠️ Borrar Transacción</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p>¿Estás seguro de que deseas eliminar este registro?</p>
+                <h5 id="modalDescripcionGasto" class="fw-bold text-dark"></h5>
+                <p class="small text-muted mt-3">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <a href="#" id="btnConfirmarEliminarGasto" class="btn btn-danger">Sí, Eliminar</a>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="{% static 'js/gastos_listado.js' %}"></script>
+<script src="{% static 'js/gastos.js' %}"></script>
+{% endblock %}

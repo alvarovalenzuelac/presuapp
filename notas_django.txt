@@ -1,0 +1,45 @@
+django-admin startproject miprimerproyecto
+python -m django startproject miprimerproyecto
+
+python manage.py migrate
+
+python manage.py runserver
+
+python manage.py startapp miapp
+
+luego de crear un modelo, creamos una migracion:
+python manage.py makemigrations
+python manage.py migrate
+
+creamos un superusuario
+python manage.py createsuperuser 
+alvar
+holahola
+
+en la app, en admin agregamos los modelos:
+from .models import Person
+
+# Register your models here.
+admin.site.register(Person)
+
+extension visual studio code
+Python Extension Pack
+
+https://sqlitebrowser.org/
+
+python -m pip install Pillow
+
+alvaro
+holahola
+
+python manage.py makemigrations tienda
+
+./env/Scripts/python.exe -m pip install -r requirements.txt
+source env/Scripts/activate
+./env/Scripts/python.exe manage.py runserver
+
+./env/Scripts/python.exe manage.py migrate
+./env/Scripts/python.exe manage.py cargar_categorias
+./env/Scripts/python.exe manage.py createsuperuser
+
+./env/Scripts/python.exe manage.py runserver

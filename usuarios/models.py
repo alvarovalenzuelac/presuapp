@@ -1,0 +1,29 @@
+from django.db import models
+from django.contrib.auth.models import AbstractUser
+
+# Create your models here.
+class UsuarioCustom(AbstractUser):
+    # Definimos los roles posibles
+    ADMIN = 'admin'
+    CLIENTE = 'cliente'
+    STAFF = 'staff'
+    
+    ROLE_CHOICES = [
+        (ADMIN, 'Administrador'),
+        (CLIENTE, 'Cliente'),
+        (STAFF, 'Staff'),
+    ]
+
+    email = models.EmailField(unique=True, verbose_name='Correo Electrónico')
+    # Campos adicionales
+    # Usamos CharField para telefono porque a veces incluyen el simbolo +
+    numero_telefono = models.CharField(max_length=20, unique=True, verbose_name='Teléfono WhatsApp',blank=True, null=True)
+    rol = models.CharField(max_length=10, choices=ROLE_CHOICES, default=CLIENTE, verbose_name='Rol')
+    
+    # Opcional: Campo para dirección o empresa si lo necesitas para el presupuesto
+    # company_name = models.CharField(max_length=100, blank=True, null=True)
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username', 'rol']
+    def __str__(self):
+        return f"{self.username} ({self.get_rol_display()})"

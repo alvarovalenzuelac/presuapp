@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="bi bi-speedometer2 me-2"></i> Panel de Control</h2>
+    
+    <form method="get" class="d-flex align-items-center bg-white p-2 rounded shadow-sm">
+        <label class="me-2 fw-bold text-muted small">Periodo:</label>
+        
+        <select name="mes_anio" class="form-select form-select-sm select-periodo">
+            {% for opcion in opciones_meses %}
+                <option value="{{ opcion.val_mes|stringformat:'d' }}-{{ opcion.val_anio|stringformat:'d' }}" 
+                    {% if opcion.val_mes == mes_actual and opcion.val_anio == anio_actual %}selected{% endif %}>
+                    {{ opcion.texto }}
+                </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<div class="row mb-4">
+    
+    <div class="col-md-4">
+        <div class="card text-white bg-primary mb-3 shadow-sm h-100">
+            <div class="card-body">
+                <small class="opacity-75">Presupuesto Global (Meta)</small>
+                
+                {% if tiene_presupuesto_global %}
+                    <h3 class="fw-bold">${{ monto_presupuesto_global|intcomma }}</h3>
+                {% else %}
+                    <h4 class="fw-bold mt-1">No definido</h4>
+                    <a href="{% url 'crear_presupuesto' %}" class="btn btn-sm btn-light text-primary mt-1" style="font-size: 0.7rem;">
+                        + Definir Ahora
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card text-white bg-danger mb-3 shadow-sm h-100">
+            <div class="card-body">
+                <small class="opacity-75">Gastos Reales</small>
+                <h3 class="fw-bold">${{ total_gastos|intcomma }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card text-white 
+            {% if not tiene_presupuesto_global %}bg-secondary
+            {% elif saldo_restante_global < 0 %}bg-dark
+            {% else %}bg-success{% endif %} 
+            mb-3 shadow-sm h-100">
+            
+            <div class="card-body">
+                <small class="opacity-75">Disponible del Global</small>
+                
+                {% if tiene_presupuesto_global %}
+                    <h3 class="fw-bold">${{ saldo_restante_global|intcomma }}</h3>
+                {% else %}
+                    <h4 class="fw-bold mt-1 text-white-50">-</h4>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-bold border-0">
+                🕒 Últimos Movimientos del Mes
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small text-muted">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in ultimas_transacciones %}
+                        <tr>
+                            <td>{{ t.fecha|date:"d M" }}</td>
+                            <td>
+                                {{ t.descripcion }}
+                                <br>
+                                <small class="text-muted detalle-transaccion">
+                                    {% if t.categoria %}{{ t.categoria.nombre }}{% else %}General{% endif %}
+                                </small>
+                            </td>
+                            <td class="{% if t.tipo == 'GASTO' %}text-danger{% else %}text-success{% endif %} fw-bold">
+                                {% if t.tipo == 'GASTO' %}-{% endif %}${{ t.monto|intcomma }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Sin movimientos este mes</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-bold border-0">
+                ⚠️ Mayor Consumo de Presupuesto
+            </div>
+            <div class="card-body">
+                {% for p in top_presupuestos %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <small class="fw-bold">{{ p.nombre }}</small>
+                        <small class="text-{{ p.estado }}">{{ p.porcentaje }}%</small>
+                    </div>
+                    
+                    <div class="progress progress-thin">
+                        <div class="progress-bar bg-{{ p.estado }} barra-ancho-dinamico" 
+                            role="progressbar" 
+                            style="--ancho-visual: {{ p.visual }}%">
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted small text-center my-4">No hay presupuestos o gastos registrados.</p>
+                {% endfor %}
+                
+                <div class="text-center mt-3">
+                    <a href="{% url 'presupuestos' %}" class="btn btn-sm btn-outline-primary">Ver todos</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-bold border-0">Gastos Diarios (Evolución)</div>
+            <div class="card-body chart-container">
+                <canvas id="chartDiario"
+                        data-labels='{{ labels_dias|safe }}'
+                        data-values='{{ data_dias|safe }}'>
+                </canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-bold border-0">Por Categoría</div>
+            <div class="card-body chart-container">
+                <canvas id="chartTorta" 
+                        data-labels='{{ labels_torta|safe }}' 
+                        data-data='{{ data_torta|safe }}'>
+                </canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const select = document.querySelector('select[name="mes_anio"]');
+    if (select) {
+        select.addEventListener('change', function() {
+            // Separa "11-2025" en mes=11 y anio=2025
+            const [mes, anio] = this.value.split('-');
+            // Redirige a la URL correcta que Django entiende
+            window.location.href = `?mes=${mes}&anio=${anio}`;
+        });
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+
+{% endblock %}

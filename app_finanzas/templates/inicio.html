@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <h1 class="display-4">Bienvenido a PresuApp</h1>
+    <p class="lead">Toma el control de tus finanzas personales de forma inteligente.</p>
+
+    {% if not user.is_authenticated %}
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mb-5">
+            <a href="{% url 'registro' %}" class="btn btn-primary btn-lg px-4 gap-3">
+                ¡Registrarse Gratis!
+            </a>
+            
+            <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg px-4">
+                Ya tengo cuenta
+            </a>
+        </div>
+    {% else %}
+        <div class="mb-5">
+            <a href="{% url 'dashboard' %}" class="btn btn-success btn-lg px-4">
+                Ir a mi Dashboard <i class="bi bi-rocket-takeoff-fill"></i>
+            </a>
+        </div>
+    {% endif %}
+    <hr class="my-4">
+    
+    <div class="row mt-5" id="features">
+        <div class="col-md-4">
+            <div class="card p-3">
+                <h3><i class="bi bi-phone-fill me-2"></i> App Móvil</h3>
+                <p>Lleva tus gastos en el bolsillo. Sincronización en tiempo real.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-3">
+                <h3><i class="bi bi-whatsapp me-2"></i> Bot WhatsApp</h3>
+                <p>Registra gastos enviando un simple mensaje de texto.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-3">
+                <h3><i class="bi bi-cloud-fill me-2"></i> Nube Segura</h3>
+                <p>Tus datos protegidos y accesibles desde cualquier lugar.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-5">
+        <p><em>[Aquí iría una imagen o video promocional]</em></p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-5">
+        <div class="card border-danger shadow">
+            <div class="card-header bg-danger text-white text-center">
+                <h4 class="mb-0">⚠️ Eliminar Cuenta</h4>
+            </div>
+            <div class="card-body text-center p-4">
+                <h5 class="card-title text-danger">¿Estás absolutamente seguro?</h5>
+                
+                <p class="card-text mt-3">
+                    Esta acción es <strong>permanente</strong> e irreversible.
+                </p>
+                <div class="alert alert-warning text-start small">
+                    <ul class="mb-0">
+                        <li>Se borrará tu perfil de usuario.</li>
+                        <li>Se eliminarán todas tus <strong>categorías personalizadas</strong>.</li>
+                        <li>Se eliminarán todos tus <strong>presupuestos</strong>.</li>
+                        <li>Se perderá todo el historial de <strong>transacciones</strong>.</li>
+                    </ul>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                        <a href="{% url 'perfil' %}" class="btn btn-secondary px-4">Cancelar</a>
+                        
+                        <button type="submit" class="btn btn-outline-danger px-4">
+                            Sí, eliminar todo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

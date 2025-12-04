@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">✏️ Editar Meta de Presupuesto</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Por favor corrige los siguientes errores:</strong>
+                            {{ form.errors }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del Presupuesto</label>
+                        {{ form.nombre }}
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Mes</label>
+                            {{ form.mes }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Año</label>
+                            {{ form.anio }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Categorías a incluir</label>
+
+                        <div class="alert alert-info py-2 small border-0" role="alert">
+                            <strong>💡 Tip:</strong> Selecciona las categorías específicas que quieres controlar. 
+                            <br>
+                            Si <strong>no seleccionas ninguna</strong>, se creará un <strong>Presupuesto Global</strong> que abarcará todos tus gastos del mes.
+                        </div>
+                        <div class="form-text mb-2">Marca las casillas para agregar o quitar categorías de este presupuesto.</div>
+
+                        <div class="accordion" id="accordionCategorias">
+                            {% for padre in categorias_jerarquia %}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading{{ padre.id }}">
+                                        <button class="accordion-button collapsed py-2 bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ padre.id }}">
+                                            <span class="fw-bold text-dark">{{ padre.nombre }}</span>
+                                        </button>
+                                    </h2>
+                                    
+                                    <div id="collapse{{ padre.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionCategorias">
+                                        <div class="accordion-body py-2">
+                                            <ul class="list-unstyled mb-0 ms-3">
+                                                {% for hijo in padre.subcategorias.all %}
+                                                    {% if hijo.usuario is None or hijo.usuario == user %}
+                                                    <li class="mb-1">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" 
+                                                                name="categorias" 
+                                                                value="{{ hijo.id }}" 
+                                                                id="cat_{{ hijo.id }}"
+                                                                {% if hijo.id in seleccionadas_ids %}checked{% endif %}>
+                                                            
+                                                            <label class="form-check-label cursor-pointer" for="cat_{{ hijo.id }}">
+                                                                {% if hijo.nombre == "General" or hijo.nombre == "Otros" %}
+                                                                    <strong>{{ padre.nombre }} (General)</strong>
+                                                                {% else %}
+                                                                    {{ hijo.nombre }}
+                                                                {% endif %}
+                                                                
+                                                                {% if hijo.usuario %}
+                                                                    <span class="badge bg-primary ms-1" style="font-size: 0.6rem;">Personal</span>
+                                                                {% endif %}
+                                                            </label>
+                                                        </div>
+                                                    </li>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if form.categorias.errors %}
+                            <div class="text-danger small mt-1">{{ form.categorias.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Monto Límite</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            {{ form.monto_limite }}
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        <a href="{% url 'presupuestos' %}" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

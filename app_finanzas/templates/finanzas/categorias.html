@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="row">
+    <div class="col-md-7 mb-4">
+        <h2 class="mb-4"><i class="bi bi-tags me-2"></i></i> Categorías Disponibles</h2>
+        
+        <div class="accordion" id="accordionCategorias">
+            {% for padre in categorias_padre %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ padre.id }}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ padre.id }}" aria-expanded="false">
+                            <strong>{{ padre.nombre }}</strong>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ padre.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionCategorias">
+                        <div class="accordion-body">
+                            <ul class="list-group list-group-flush">
+    {% for hijo in padre.subcategorias.all %}
+        {% if hijo.usuario is None or hijo.usuario == user %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                
+                <span>{{ hijo.nombre }}</span>
+                
+                <div>
+                    {% if hijo.usuario %}
+                        <span class="badge bg-primary rounded-pill me-2">Personalizada</span>
+                        
+                        <a href="{% url 'editar_categoria' hijo.id %}" class="btn btn-sm btn-outline-warning me-1" title="Editar">
+                            ✏️
+                        </a>
+                        
+                        <button type="button" 
+                        class="btn btn-sm btn-outline-danger" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#deleteModal"
+                        data-url="{% url 'eliminar_categoria' hijo.id %}"
+                        data-nombre="{{ hijo.nombre }}">
+                            🗑️
+                        </button>
+                        
+                    {% else %}
+                        <span class="badge bg-secondary rounded-pill">Global</span>
+                    {% endif %}
+                </div>
+
+            </li>
+        {% endif %}
+    {% endfor %}
+</ul>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card shadow border-primary sticky-top" style="top: 20px; z-index: 1;">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">+ Nueva Subcategoría</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">¿No encuentras lo que buscas? Crea una específica para ti.</p>
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Categoría Principal</label>
+                        {{ form.categoria_padre }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        {{ form.nombre }}
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Crear Subcategoría</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">⚠️ Confirmar Eliminación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="lead">¿Estás seguro de que deseas eliminar la subcategoría <strong id="modalNombreCategoria"></strong>?</p>
+                
+                <div class="alert alert-warning d-flex align-items-center" role="alert">
+                    <div style="font-size: 1.5rem; margin-right: 15px;">🔄</div>
+                    <div class="text-start">
+                        <strong>¡Atención!</strong><br>
+                        Todas las transacciones asociadas a esta categoría 
+                        serán movidas automáticamente a <strong>"General"</strong>.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <a href="#" id="btnConfirmarEliminar" class="btn btn-danger">Sí, Eliminar</a>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="{% static 'js/categorias.js' %}"></script>
+{% endblock %}

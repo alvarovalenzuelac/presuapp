@@ -1,0 +1,159 @@
+/* --- TEMA PERSONALIZADO (FINANZAS) --- */
+:root {
+    /* Definimos el nuevo color PRIMARIO (Verde Esmeralda) */
+    /* Color original: #0d6efd (Azul) */
+    --bs-primary: #198754; 
+    --bs-primary-rgb: 25, 135, 84;
+    
+    /* Opcional: Un verde más oscuro para el hover/active */
+    --bs-primary-hover: #157347;
+}
+
+/* Forzamos la actualización de los botones primarios */
+.btn-primary {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: var(--bs-primary-hover) !important;
+    border-color: var(--bs-primary-hover) !important;
+}
+
+/* Forzamos la actualización de los botones outline */
+.btn-outline-primary {
+    color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+/* Color de fondo para la Navbar y Cards de encabezado */
+.bg-primary {
+    background-color: var(--bs-primary) !important;
+}
+
+/* Color de texto primario */
+.text-primary {
+    color: var(--bs-primary) !important;
+}
+
+/* Estilos de la Sidebar (Mejorando el gris oscuro) */
+.sidebar {
+    background-color: #1a1d20; /* Un poco más elegante */
+}
+
+/* Enlaces de la sidebar al pasar el mouse */
+.sidebar a:hover {
+    background-color: rgba(25, 135, 84, 0.2); /* Verde transparente suave */
+    color: #fff;
+    border-left: 3px solid var(--bs-primary); /* Detalle visual */
+}
+
+
+
+/* Estilos Globales */
+body { 
+    min-height: 100vh; 
+    display: flex; 
+    flex-direction: column; 
+}
+
+/* Contenedor principal para dividir Sidebar y Contenido */
+.main-container { 
+    flex: 1; 
+    display: flex; 
+}
+
+/* Barra Lateral */
+.sidebar { 
+    min-width: 250px; 
+    background-color: #212529; 
+    color: white; 
+    min-height: 100%; 
+}
+
+.sidebar a { 
+    color: white; 
+    text-decoration: none; 
+    padding: 10px; 
+    display: block; 
+}
+
+.sidebar a:hover { 
+    background-color: #343a40; 
+}
+
+/* Área de contenido variable */
+.content { 
+    flex: 1; 
+    padding: 20px; 
+}
+
+.custom-range-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.progress-presupuesto {
+    height: 20px;
+    border-radius: 10px; /* Un toque estético extra */
+    background-color: #e9ecef; /* Fondo gris claro */
+}
+
+/* Opcional: Si quieres que el texto dentro de la barra sea más pequeño */
+.progress-presupuesto .progress-bar {
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.barra-dinamica {
+    /* Usamos una variable CSS. Si no existe, usa 0% por defecto */
+    width: var(--ancho-dinamico, 0%);
+}
+
+.barra-progreso-dinamica {
+    font-weight: bold;
+    /* Usamos una variable. Si no existe, usa 0% por defecto */
+    width: var(--progreso-ancho, 0%);
+    /* Opcional: Una transición suave para que se vea bonito al cargar */
+    transition: width 0.6s ease;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px; /* Altura fija para uniformidad */
+    width: 100%;
+}
+
+.select-periodo {
+    font-weight: bold;
+    border: none;
+    background-color: #f8f9fa; /* bg-light */
+}
+
+/* Texto pequeño para detalles de transacciones */
+.detalle-transaccion {
+    font-size: 0.75rem;
+}
+
+/* Barra de progreso delgada para el Top Presupuestos */
+.progress-thin {
+    height: 8px;
+    border-radius: 4px;
+}
+
+.barra-ancho-dinamico {
+    width: var(--ancho-visual, 0%);
+    transition: width 0.6s ease; /* Opcional: animación suave */
+}
+
+.scroll-box-categorias {
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #f8f9fa; /* bg-light */
+}
