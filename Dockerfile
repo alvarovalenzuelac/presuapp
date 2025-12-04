@@ -1,32 +1,36 @@
-# 1. Usar una imagen base oficial de Python (Ligera y segura)
+# 1. Usar una imagen base oficial de Python
 FROM python:3.11-slim
 
-# 2. Evitar que Python genere archivos .pyc y permitir logs en tiempo real
+# 2. Variables de entorno para Python
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 3. Crear directorio de trabajo dentro del contenedor
+# 3. Crear directorio de trabajo
 WORKDIR /app
 
-# 4. Instalar dependencias del sistema necesarias para PostgreSQL y otros
-# (gcc y libpq-dev son necesarios para compilar psycopg2 si se usa la versión binaria)
+# 4. Instalar dependencias del sistema (gcc para compilar si es necesario)
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 5. Copiar los requerimientos e instalarlos
-# Hacemos esto PRIMERO para aprovechar la caché de Docker (si no cambian las librerías, no reinstala)
+# 5. Instalar requerimientos
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Copiar el resto del código del proyecto
+# 6. Copiar el código
 COPY . /app/
 
-# 7. Exponer el puerto donde correrá la app (Cloud Run usa 8080 por defecto)
-PORT 8080
+# --- NUEVO PASO: RECOLECTAR ESTÁTICOS ---
+# Usamos variables "dummy" (falsas) solo para que este comando funcione durante la construcción.
+# WhiteNoise comprimirá los archivos aquí.
+RUN SECRET_KEY=dummy_secret_key \
+    DATABASE_URL=sqlite:////tmp/db.sqlite3 \
+    python manage.py collectstatic --noinput
+
+# 7. Exponer el puerto
+ENV PORT 8080
 EXPOSE 8080
 
-# 8. Comando para iniciar el servidor de producción (Gunicorn)
-# Reemplaza 'presuApp' con el nombre de la carpeta donde está tu wsgi.py
+# 8. Comando para iniciar
 CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0 presuApp.wsgi:application
