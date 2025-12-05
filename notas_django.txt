@@ -43,3 +43,5 @@ source env/Scripts/activate
 ./env/Scripts/python.exe manage.py createsuperuser
 
 ./env/Scripts/python.exe manage.py runserver
+
+pip freeze > requirements.txt

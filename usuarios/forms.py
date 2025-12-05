@@ -16,8 +16,6 @@ class RegistroUsuarioForm(UserCreationForm):
         }
     def save(self, commit=True):
         user = super().save(commit=False)
-        # Como quitamos el campo username del formulario, 
-        # le asignamos el valor del email automáticamente.
         user.username = user.email 
         
         if commit:
