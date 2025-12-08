@@ -86,6 +86,9 @@ urlpatterns = [
     # urls para autenticacion de la app movil
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'), # Login (User/Pass -> Token)
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), # Refrescar sesión
+    
+    path('api/v1/usuarios/me/', user_views.UsuarioLogueadoView.as_view(), name='usuario_me'),
+
     path('api/v1/', include('app_finanzas.api.urls')),
     # urls para documentacion de la api
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),

@@ -8,6 +8,8 @@ from django.utils import timezone
 from django.db.models import Q
 from django.db.models.functions import ExtractDay
 from app_finanzas.models import Transaccion,Presupuesto
+from rest_framework import generics, permissions
+from .serializers import UsuarioSerializer
 import json
 import datetime
 
@@ -209,3 +211,12 @@ def dashboard_view(request):
         'data_dias': json.dumps(data_dias),
     }
     return render(request, 'dashboard.html', context)
+
+
+class UsuarioLogueadoView(generics.RetrieveAPIView):
+    serializer_class = UsuarioSerializer
+    permission_classes = [permissions.IsAuthenticated] # Solo usuarios con Token
+
+    def get_object(self):
+        # Retorna tu UsuarioCustom logueado actualmente
+        return self.request.user
