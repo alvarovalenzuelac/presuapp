@@ -5,7 +5,7 @@ from app_finanzas.models import Categoria, Transaccion, Presupuesto
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria
-        fields = ['id', 'nombre', 'icono', 'categoria_padre']
+        fields = ['id', 'nombre', 'icono', 'categoria_padre', 'usuario']
 
 # 2. SERIALIZER DE TRANSACCIONES
 class TransaccionSerializer(serializers.ModelSerializer):

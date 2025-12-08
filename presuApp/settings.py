@@ -162,7 +162,8 @@ THOUSAND_SEPARATOR = '.'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        # 'rest_framework.authentication.SessionAuthentication', # Opcional: Descomentar si quieres probar la API desde el navegador logueado
+        'rest_framework.authentication.SessionAuthentication', # Opcional: Descomentar si quieres probar la API desde el navegador logueado
+        
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated', # Por defecto, todo es privado
