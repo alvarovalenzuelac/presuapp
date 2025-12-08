@@ -49,7 +49,7 @@ def verificar_presupuestos(sender, instance, created, **kwargs):
                 es_afectado = True
         
         if es_afectado:
-            verificar_limite(presupuesto, usuario)
+            verificar_niveles_alerta(presupuesto, usuario, mes, anio)
 
 def verificar_limite(presupuesto, usuario):
     # 1. Calcular total gastado en ese presupuesto
@@ -87,3 +87,63 @@ def verificar_limite(presupuesto, usuario):
             leida=False
         )
         print(f"ALERTA GENERADA: {titulo}")
+
+def verificar_niveles_alerta(presupuesto, usuario, mes, anio):
+    # 1. Calcular total gastado
+    cats = presupuesto.categorias.all()
+    
+    gastos_query = Transaccion.objects.filter(
+        usuario=usuario,
+        tipo='GASTO',
+        fecha__year=anio,   # Usamos las variables pasadas
+        fecha__month=mes
+    )
+
+    if cats.exists():
+        gastos_query = gastos_query.filter(
+            Q(categoria__in=cats) | Q(categoria__categoria_padre__in=cats)
+        )
+    
+    total_gastado = gastos_query.aggregate(Sum('monto'))['monto__sum'] or 0
+
+    # 2. Calcular porcentaje
+    limite = presupuesto.monto_limite
+    if limite <= 0: return
+
+    porcentaje = (total_gastado / limite) * 100
+    
+    # 3. Determinar nivel actual
+    nuevo_nivel = 0
+    titulo = ""
+    mensaje = ""
+
+    if porcentaje >= 100:
+        nuevo_nivel = 3
+        titulo = f"🚨 Límite Excedido: {presupuesto.nombre}"
+        mensaje = f"Has superado el 100% de tu presupuesto. Total: ${total_gastado:,.0f} / ${limite:,.0f}"
+    
+    elif porcentaje >= 95:
+        nuevo_nivel = 2
+        titulo = f"⚠️ Peligro (95%): {presupuesto.nombre}"
+        mensaje = f"Estás a punto de agotar tu presupuesto. Llevas gastado ${total_gastado:,.0f}."
+    
+    elif porcentaje >= 80:
+        nuevo_nivel = 1
+        titulo = f"📢 Atención (80%): {presupuesto.nombre}"
+        mensaje = f"Ya consumiste el 80% de tu presupuesto. Llevas ${total_gastado:,.0f}."
+
+    # 4. Enviar Alerta SOLO si subimos de nivel (Anti-Spam)
+    if nuevo_nivel > 0 and nuevo_nivel > presupuesto.nivel_alerta_enviado:
+        
+        Alerta.objects.create(
+            usuario=usuario,
+            titulo=titulo,
+            mensaje=mensaje,
+            leida=False
+        )
+        
+        # Actualizamos el presupuesto para recordar que ya avisamos este nivel
+        presupuesto.nivel_alerta_enviado = nuevo_nivel
+        presupuesto.save(update_fields=['nivel_alerta_enviado'])
+        
+        print(f"ALERTA GENERADA NIVEL {nuevo_nivel}: {titulo}")
