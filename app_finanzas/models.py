@@ -38,6 +38,8 @@ class Presupuesto(models.Model):
     anio = models.IntegerField()
 
     nombre = models.CharField(max_length=50, default="Presupuesto Mensual")
+
+    nivel_alerta_enviado = models.IntegerField(default=0)
     
     def __str__(self):
         return f"{self.nombre} ({self.mes}/{self.anio})"
