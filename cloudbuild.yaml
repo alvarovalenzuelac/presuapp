@@ -1,10 +1,9 @@
 steps:
   # 1. Construir la imagen Docker
-  # Usamos $PROJECT_ID para que Google ponga el ID 'presuapp-produccion' automáticamente.
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/presu-api', '.']
 
-  # 2. Subir la imagen al registro de contenedores de Google (GCR)
+  # 2. Subir la imagen al registro de contenedores (GCR)
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/presu-api']
 
@@ -14,14 +13,15 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'presu-api'           # <--- Este es el nombre de tu servicio en Cloud Run
+      - 'presu-api'
       - '--image'
       - 'gcr.io/$PROJECT_ID/presu-api'
       - '--region'
-      - 'us-central1'         # <--- Región importante (basada en tu URL actual)
+      - 'us-central1'
       - '--platform'
       - 'managed'
-      - '--allow-unauthenticated' # Mantiene la API pública
+      - '--allow-unauthenticated'
 
-images:
-  - 'gcr.io/$PROJECT_ID/presu-api'
+# --- AQUÍ ESTÁ EL ARREGLO ---
+options:
+  logging: CLOUD_LOGGING_ONLY
