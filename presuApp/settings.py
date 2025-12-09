@@ -151,7 +151,14 @@ AUTH_USER_MODEL = 'usuarios.UsuarioCustom'
 LOGIN_REDIRECT_URL = 'dashboard'  # A donde irás después de loguearte
 LOGOUT_REDIRECT_URL = 'inicio'      # A donde irás después de salir
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_APP_USER', default='tu_correo@gmail.com')
+EMAIL_HOST_PASSWORD = config('EMAIL_APP_PASSW', default='tu_contrasena')
+DEFAULT_FROM_EMAIL = config('EMAIL_APP_DEFAULT_FROM', default='tu_correo@gmail.com')
 
 USE_THOUSAND_SEPARATOR = True
 NUMBER_GROUPING = 3 
@@ -191,3 +198,8 @@ CLOUDRUN_SERVICE_URL = config('CLOUDRUN_SERVICE_URL', default=None)
 
 if CLOUDRUN_SERVICE_URL:
     CSRF_TRUSTED_ORIGINS = [CLOUDRUN_SERVICE_URL]
+
+AUTHENTICATION_BACKENDS = [
+    'usuarios.backends.BloqueoBackend', # Nuestro backend personalizado
+    # 'django.contrib.auth.backends.ModelBackend', # El default (fallback)
+]
