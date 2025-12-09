@@ -86,3 +86,22 @@ class WhatsAppLog(models.Model):
 
     def __str__(self):
         return f"Log {self.id} - {self.fecha_creacion}"
+    
+class WhatsAppSession(models.Model):
+    ESTADOS = [
+        ('INICIO', 'Inicio'),
+        ('ESPERANDO_MONTO', 'Esperando Monto'),
+        ('ESPERANDO_CATEGORIA', 'Esperando Categoria'),
+    ]
+
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    telefono = models.CharField(max_length=20)
+    estado = models.CharField(max_length=50, choices=ESTADOS, default='INICIO')
+    
+    # Aquí guardamos datos temporales (ej: {'monto': 5000})
+    datos_temporales = models.JSONField(default=dict)
+    
+    ultimo_mensaje = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Sesión de {self.usuario}"

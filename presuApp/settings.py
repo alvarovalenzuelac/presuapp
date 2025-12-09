@@ -203,3 +203,7 @@ AUTHENTICATION_BACKENDS = [
     'usuarios.backends.BloqueoBackend', # Nuestro backend personalizado
     # 'django.contrib.auth.backends.ModelBackend', # El default (fallback)
 ]
+
+WHATSAPP_PHONE_ID = config('WHATSAPP_PHONE_ID', default='')
+WHATSAPP_TOKEN = config('WHATSAPP_TOKEN', default='')
+WHATSAPP_API_URL = f"https://graph.facebook.com/v17.0/{WHATSAPP_PHONE_ID}/messages"
