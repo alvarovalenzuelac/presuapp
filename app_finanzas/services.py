@@ -228,14 +228,25 @@ class WhatsAppService:
         self.enviar_menu_principal(telefono, usuario.first_name)
 
     def enviar_lista_padres(self, telefono, usuario):
-        # Buscamos categorías PADRE (categoria_padre=None)
-        # Que sean Globales (usuario=None) O del Usuario
         padres = Categoria.objects.filter(
             Q(usuario=None) | Q(usuario=usuario),
             categoria_padre=None
-        ).order_by('nombre')[:9] # Límite de WhatsApp: 10 filas
+        ).order_by('nombre')[:9]
 
-        rows = [{"id": f"padre_{c.id}", "title": c.nombre} for c in padres]
+        rows = []
+        for c in padres:
+            # CORTE DE SEGURIDAD: Título máx 24 chars
+            titulo = c.nombre[:24]
+            desc = ""
+            # Si el nombre es muy largo, lo ponemos completo en la descripción
+            if len(c.nombre) > 24:
+                desc = c.nombre[:72]
+            
+            rows.append({
+                "id": f"padre_{c.id}", 
+                "title": titulo,
+                "description": desc
+            })
         
         data = {
             "messaging_product": "whatsapp", "to": telefono, "type": "interactive",
@@ -252,13 +263,24 @@ class WhatsAppService:
         self._enviar_api(data)
 
     def enviar_lista_hijas(self, telefono, usuario, padre_id):
-        # Buscamos las HIJAS del padre seleccionado
         hijas = Categoria.objects.filter(
             Q(usuario=None) | Q(usuario=usuario),
             categoria_padre_id=padre_id
         ).order_by('nombre')[:8]
 
-        rows = [{"id": f"cat_{c.id}", "title": c.nombre} for c in hijas]
+        rows = []
+        for c in hijas:
+            # CORTE DE SEGURIDAD
+            titulo = c.nombre[:24]
+            desc = ""
+            if len(c.nombre) > 24:
+                desc = c.nombre[:72]
+
+            rows.append({
+                "id": f"cat_{c.id}", 
+                "title": titulo, 
+                "description": desc
+            })
         
         # Agregamos opciones fijas
         rows.append({"id": "cat_general", "title": "General / Otro"})
