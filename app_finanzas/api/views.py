@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from app_finanzas.services import WhatsAppService
 import logging
 from django.conf import settings
+from django.http import HttpResponse
 
 # VISTA API: CATEGORÍAS
 class CategoriaViewSet(viewsets.ModelViewSet):
@@ -77,11 +78,15 @@ class WhatsAppWebhookView(APIView):
 
         if mode and token:
             if mode == 'subscribe' and token == VERIFY_TOKEN:
-                return Response(int(challenge), status=status.HTTP_200_OK)
+                # return Response(int(challenge), status=status.HTTP_200_OK)
+                return HttpResponse(challenge, content_type="text/plain", status=200)
             else:
-                return Response("Token inválido", status=status.HTTP_403_FORBIDDEN)
+                # return Response("Token inválido", status=status.HTTP_403_FORBIDDEN)
+                return HttpResponse("Token inválido", status=403)
+            
         
-        return Response("Faltan parámetros", status=status.HTTP_400_BAD_REQUEST)
+        # return Response("Faltan parámetros", status=status.HTTP_400_BAD_REQUEST)
+        return HttpResponse("Faltan parámetros", status=400)
 
     # 2. RECEPCIÓN DE MENSAJES
     def post(self, request):
