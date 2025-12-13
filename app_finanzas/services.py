@@ -1,8 +1,8 @@
-import json
 import requests
 import logging
 from django.conf import settings
 from django.utils import timezone
+from django.db.models import Sum, Q # <--- Importante para los cálculos
 from usuarios.models import UsuarioCustom
 from app_finanzas.models import Transaccion, WhatsAppLog, WhatsAppSession, Categoria
 
@@ -18,8 +18,8 @@ class WhatsAppService:
 
     def procesar_log(self, log_id):
         log = WhatsAppLog.objects.get(id=log_id)
-        
         try:
+            # ... (Lógica de extracción del mensaje igual que antes) ...
             payload = log.payload
             entry = payload.get('entry', [])[0]
             changes = entry.get('changes', [])[0]
@@ -31,148 +31,255 @@ class WhatsAppService:
             mensaje = messages[0]
             telefono = mensaje.get('from') 
             
-            print(f"Mensaje recibido de: {telefono}")
+            # Búsqueda flexible del usuario (con o sin +)
+            usuario = UsuarioCustom.objects.filter(
+                Q(numero_telefono=telefono) | Q(numero_telefono=f"+{telefono}")
+            ).first()
 
-            usuario = UsuarioCustom.objects.filter(numero_telefono=telefono).first()
             if not usuario:
-                print(f"Usuario NO encontrado para el número: {telefono}")
-                # Opcional: Probar buscando sin código de país si es necesario
+                print(f"⚠️ Usuario no encontrado: {telefono}")
                 return
-            print(f"Usuario identificado: {usuario.email}")
-            # 2. Obtener Sesión
+
             sesion, created = WhatsAppSession.objects.get_or_create(
                 usuario=usuario, defaults={'telefono': telefono}
             )
-            
 
-            # 3. Detectar qué escribió o presionó
+            # Interpretar texto o selección
             tipo_msg = mensaje.get('type')
-            texto = ""
+            texto_usuario = ""
             if tipo_msg == 'text':
-                texto = mensaje.get('text', {}).get('body', '').strip()
+                texto_usuario = mensaje.get('text', {}).get('body', '').strip()
             elif tipo_msg == 'interactive':
-                int_data = mensaje.get('interactive')
-                if int_data['type'] == 'button_reply':
-                    texto = int_data['button_reply']['id']
-                elif int_data['type'] == 'list_reply':
-                    texto = int_data['list_reply']['id']
+                interactivo = mensaje.get('interactive')
+                if interactivo.get('type') == 'button_reply':
+                    texto_usuario = interactivo['button_reply']['id']
+                elif interactivo.get('type') == 'list_reply':
+                    texto_usuario = interactivo['list_reply']['id']
 
-            print(f"Texto interpretado: {texto}")
-
-            # 4. Comandos de Salida
-            if texto.lower() in ['hola', 'menu', 'cancelar', 'inicio']:
-                self.resetear(sesion)
-                self.enviar_menu(telefono, usuario.first_name)
+            # Comandos globales
+            if texto_usuario.lower() in ['hola', 'menu', 'inicio', 'cancelar', 'salir']:
+                self.resetear_sesion(sesion)
+                self.enviar_menu_principal(telefono, usuario.first_name)
                 return
 
-            # 5. Máquina de Estados
-            self.manejar_flujo(sesion, texto, telefono)
-
+            self.manejar_flujo(sesion, texto_usuario, telefono)
+            
             log.procesado = True
             log.save()
 
         except Exception as e:
             log.error = str(e)
             log.save()
-            print(f"Error crítico en WhatsAppService: {e}")
+            print(f"Error: {e}")
 
     def manejar_flujo(self, sesion, input_usuario, telefono):
         
+        # --- ESTADO 1: MENÚ PRINCIPAL ---
         if sesion.estado == 'INICIO':
             if input_usuario == 'BTN_NUEVO_GASTO':
                 sesion.estado = 'ESPERANDO_MONTO'
                 sesion.datos_temporales = {'tipo': 'GASTO'}
                 sesion.save()
-                self.enviar_mensaje(telefono, "Ingresa el monto (solo números):")
-            elif input_usuario == 'BTN_VER_SALDO':
-                # Aquí podrías calcular saldo real
-                self.enviar_mensaje(telefono, "Tu saldo es... (Próximamente)")
+                self.enviar_mensaje(telefono, "💰 *Registrar Gasto*\nIngresa el monto (solo números):")
+            
+            elif input_usuario == 'BTN_RESUMEN': # <--- Nuevo nombre
+                self.enviar_resumen_mensual(telefono, sesion.usuario)
+            
             else:
-                self.enviar_mensaje(telefono, "Usa el menú para comenzar.")
-                self.enviar_menu(telefono, sesion.usuario.first_name)
+                self.enviar_menu_principal(telefono, sesion.usuario.first_name)
 
+        # --- ESTADO 2: RECIBIMOS MONTO -> PEDIMOS PADRE ---
         elif sesion.estado == 'ESPERANDO_MONTO':
             if input_usuario.isdigit():
                 datos = sesion.datos_temporales
                 datos['monto'] = int(input_usuario)
                 sesion.datos_temporales = datos
-                sesion.estado = 'ESPERANDO_CATEGORIA'
-                sesion.save()
-                self.enviar_lista_categorias(telefono, sesion.usuario)
-            else:
-                self.enviar_mensaje(telefono, "Por favor ingresa solo números.")
-
-        elif sesion.estado == 'ESPERANDO_CATEGORIA':
-            if input_usuario.startswith('cat_'):
-                cat_id = input_usuario.split('_')[1]
-                if cat_id == 'null': cat_id = None
                 
+                # Avanzamos al siguiente paso
+                sesion.estado = 'ESPERANDO_CATEGORIA_PADRE'
+                sesion.save()
+                
+                self.enviar_lista_padres(telefono, sesion.usuario)
+            else:
+                self.enviar_mensaje(telefono, "🔢 Por favor ingresa un número válido (sin puntos ni signos).")
+
+        # --- ESTADO 3: RECIBIMOS PADRE -> PEDIMOS HIJA ---
+        elif sesion.estado == 'ESPERANDO_CATEGORIA_PADRE':
+            if input_usuario.startswith('padre_'):
+                padre_id = input_usuario.split('_')[1]
+                
+                # Guardamos el padre seleccionado temporalmente
                 datos = sesion.datos_temporales
-                Transaccion.objects.create(
-                    usuario=sesion.usuario,
-                    tipo=datos['tipo'],
-                    monto=datos['monto'],
-                    fecha=timezone.now().date(),
-                    categoria_id=cat_id,
-                    descripcion="WhatsApp Bot"
-                )
-                self.enviar_mensaje(telefono, f"Gasto de ${datos['monto']} guardado.")
-                self.resetear(sesion)
+                datos['padre_id'] = padre_id
+                sesion.datos_temporales = datos
+                
+                # Avanzamos
+                sesion.estado = 'ESPERANDO_CATEGORIA_HIJA'
+                sesion.save()
+                
+                self.enviar_lista_hijas(telefono, sesion.usuario, padre_id)
             else:
                 self.enviar_mensaje(telefono, "Selecciona una categoría de la lista.")
 
-    def resetear(self, sesion):
+        # --- ESTADO 4: RECIBIMOS HIJA -> GUARDAMOS ---
+        elif sesion.estado == 'ESPERANDO_CATEGORIA_HIJA':
+            if input_usuario.startswith('cat_'):
+                cat_id_raw = input_usuario.split('_')[1]
+                
+                cat_final = None
+                
+                # Lógica para "General"
+                if cat_id_raw == 'general':
+                    # Buscamos la categoría "General" o "Otros" real en la BD
+                    cat_final = Categoria.objects.filter(
+                        Q(nombre__iexact="General") | Q(nombre__iexact="Otros")
+                    ).first()
+                else:
+                    # Buscamos la categoría por ID
+                    try:
+                        cat_final = Categoria.objects.get(id=cat_id_raw)
+                    except Categoria.DoesNotExist:
+                        cat_final = None # Fallback
+
+                # Guardamos la transacción
+                datos = sesion.datos_temporales
+                Transaccion.objects.create(
+                    usuario=sesion.usuario,
+                    tipo=datos.get('tipo', 'GASTO'),
+                    monto=datos.get('monto', 0),
+                    fecha=timezone.now().date(),
+                    categoria=cat_final,
+                    descripcion=f"WhatsApp Bot ({cat_final.nombre if cat_final else 'General'})"
+                )
+                
+                texto_cat = cat_final.nombre if cat_final else "General"
+                self.enviar_mensaje(telefono, f"✅ *¡Listo!*\nGasto de ${datos['monto']} registrado en *{texto_cat}*.")
+                
+                # Volvemos al inicio y mostramos menú
+                self.resetear_sesion(sesion)
+                self.enviar_menu_principal(telefono, sesion.usuario.first_name)
+
+            elif input_usuario == 'VOLVER':
+                 # Opción para volver atrás si se equivocó de Padre
+                 sesion.estado = 'ESPERANDO_CATEGORIA_PADRE'
+                 sesion.save()
+                 self.enviar_lista_padres(telefono, sesion.usuario)
+            else:
+                self.enviar_mensaje(telefono, "Selecciona una opción válida.")
+
+    def resetear_sesion(self, sesion):
         sesion.estado = 'INICIO'
         sesion.datos_temporales = {}
         sesion.save()
 
-    # --- ENVÍOS A META ---
+    # --- MÉTODOS DE ENVÍO ---
+
     def enviar_mensaje(self, telefono, texto):
         data = {"messaging_product": "whatsapp", "to": telefono, "type": "text", "text": {"body": texto}}
-        requests.post(self.api_url, headers=self.headers, json=data)
+        self._enviar_api(data)
 
-    def enviar_menu(self, telefono, nombre):
+    def enviar_menu_principal(self, telefono, nombre):
         data = {
             "messaging_product": "whatsapp", "to": telefono, "type": "interactive",
             "interactive": {
                 "type": "button",
-                "body": {"text": f"Hola {nombre}, ¿qué deseas hacer?"},
+                "body": {"text": f"Hola {nombre} 👋\n¿Qué deseas hacer hoy?"},
                 "action": {
                     "buttons": [
                         {"type": "reply", "reply": {"id": "BTN_NUEVO_GASTO", "title": "Registrar Gasto"}},
-                        {"type": "reply", "reply": {"id": "BTN_VER_SALDO", "title": "Ver Saldo"}}
+                        {"type": "reply", "reply": {"id": "BTN_RESUMEN", "title": "Ver Resumen"}}
                     ]
                 }
             }
         }
-        requests.post(self.api_url, headers=self.headers, json=data)
+        self._enviar_api(data)
 
-    def enviar_lista_categorias(self, telefono, usuario):
-        cats = Categoria.objects.filter(usuario=usuario)[:8]
-        rows = [{"id": f"cat_{c.id}", "title": c.nombre} for c in cats]
-        rows.append({"id": "cat_null", "title": "General"})
+    def enviar_resumen_mensual(self, telefono, usuario):
+        hoy = timezone.now()
+        # Calculamos gastos del mes actual
+        gastos = Transaccion.objects.filter(
+            usuario=usuario,
+            tipo='GASTO',
+            fecha__month=hoy.month,
+            fecha__year=hoy.year
+        ).aggregate(Sum('monto'))['monto__sum'] or 0
+        
+        # Opcional: Calcular Ingresos también
+        ingresos = Transaccion.objects.filter(
+            usuario=usuario,
+            tipo='INGRESO',
+            fecha__month=hoy.month,
+            fecha__year=hoy.year
+        ).aggregate(Sum('monto'))['monto__sum'] or 0
+        
+        balance = ingresos - gastos
+
+        msg = (
+            f"📅 *Resumen de {hoy.strftime('%B')}*\n"
+            f"────────────────\n"
+            f"📉 *Gastos:* ${gastos:,.0f}\n"
+            f"📈 *Ingresos:* ${ingresos:,.0f}\n"
+            f"────────────────\n"
+            f"💰 *Balance:* ${balance:,.0f}"
+        ).replace(",", ".") # Formato CL
+        
+        self.enviar_mensaje(telefono, msg)
+        # Re-enviamos el menú para que siga operando
+        self.enviar_menu_principal(telefono, usuario.first_name)
+
+    def enviar_lista_padres(self, telefono, usuario):
+        # Buscamos categorías PADRE (categoria_padre=None)
+        # Que sean Globales (usuario=None) O del Usuario
+        padres = Categoria.objects.filter(
+            Q(usuario=None) | Q(usuario=usuario),
+            categoria_padre=None
+        ).order_by('nombre')[:9] # Límite de WhatsApp: 10 filas
+
+        rows = [{"id": f"padre_{c.id}", "title": c.nombre} for c in padres]
         
         data = {
             "messaging_product": "whatsapp", "to": telefono, "type": "interactive",
             "interactive": {
                 "type": "list",
-                "header": {"type": "text", "text": "Categorías"},
-                "body": {"text": "Selecciona una categoría"},
+                "header": {"type": "text", "text": "Categoría Principal"},
+                "body": {"text": "¿En qué grupo entra este gasto?"},
                 "action": {
-                    "button": "Ver Lista",
-                    "sections": [{"title": "Tus Categorías", "rows": rows}]
+                    "button": "Seleccionar",
+                    "sections": [{"title": "Familias", "rows": rows}]
                 }
             }
         }
-        requests.post(self.api_url, headers=self.headers, json=data)
-    
+        self._enviar_api(data)
+
+    def enviar_lista_hijas(self, telefono, usuario, padre_id):
+        # Buscamos las HIJAS del padre seleccionado
+        hijas = Categoria.objects.filter(
+            Q(usuario=None) | Q(usuario=usuario),
+            categoria_padre_id=padre_id
+        ).order_by('nombre')[:8]
+
+        rows = [{"id": f"cat_{c.id}", "title": c.nombre} for c in hijas]
+        
+        # Agregamos opciones fijas
+        rows.append({"id": "cat_general", "title": "General / Otro"})
+        rows.append({"id": "VOLVER", "title": "🔙 Volver Atrás"})
+
+        data = {
+            "messaging_product": "whatsapp", "to": telefono, "type": "interactive",
+            "interactive": {
+                "type": "list",
+                "header": {"type": "text", "text": "Detalle"},
+                "body": {"text": "Selecciona la subcategoría específica:"},
+                "action": {
+                    "button": "Seleccionar",
+                    "sections": [{"title": "Opciones", "rows": rows}]
+                }
+            }
+        }
+        self._enviar_api(data)
+
     def _enviar_api(self, data):
         try:
-            response = requests.post(self.api_url, headers=self.headers, json=data)
-            # --- DIAGNÓSTICO: Ver si Meta aceptó el mensaje ---
-            if response.status_code not in [200, 201]:
-                print(f"Error al enviar a Meta ({response.status_code}): {response.text}")
-            else:
-                print(f"Mensaje enviado correctamente a Meta.")
+            requests.post(self.api_url, headers=self.headers, json=data)
         except Exception as e:
-            print(f"Error de conexión enviando mensaje: {e}")
+            print(f"Error API: {e}")

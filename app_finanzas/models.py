@@ -91,7 +91,8 @@ class WhatsAppSession(models.Model):
     ESTADOS = [
         ('INICIO', 'Inicio'),
         ('ESPERANDO_MONTO', 'Esperando Monto'),
-        ('ESPERANDO_CATEGORIA', 'Esperando Categoria'),
+        ('ESPERANDO_CATEGORIA_PADRE', 'Esperando Categoria Padre'),
+        ('ESPERANDO_CATEGORIA_HIJA', 'Esperando Categoria Hija'),
     ]
 
     usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
