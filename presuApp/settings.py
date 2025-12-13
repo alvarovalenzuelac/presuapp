@@ -207,3 +207,4 @@ AUTHENTICATION_BACKENDS = [
 WHATSAPP_PHONE_ID = config('WHATSAPP_PHONE_ID', default='')
 WHATSAPP_TOKEN = config('WHATSAPP_TOKEN', default='')
 WHATSAPP_API_URL = f"https://graph.facebook.com/v17.0/{WHATSAPP_PHONE_ID}/messages"
+WHATSAPP_VERIFY_TOKEN = config('WHATSAPP_VERIFY_TOKEN', default='mi_token_secreto_presuapp')

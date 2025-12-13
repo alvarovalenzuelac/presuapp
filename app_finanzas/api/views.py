@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from app_finanzas.services import WhatsAppService
 import logging
+from django.conf import settings
 
 # VISTA API: CATEGORÍAS
 class CategoriaViewSet(viewsets.ModelViewSet):
@@ -68,7 +69,7 @@ class WhatsAppWebhookView(APIView):
     # 1. VERIFICACIÓN (Meta te pregunta: "¿Eres tú?")
     def get(self, request):
         # Este token lo inventas tú y lo configuras en el panel de Facebook después
-        VERIFY_TOKEN = "mi_token_secreto_presuapp" 
+        VERIFY_TOKEN = settings.WHATSAPP_VERIFY_TOKEN
         
         mode = request.GET.get('hub.mode')
         token = request.GET.get('hub.verify_token')
