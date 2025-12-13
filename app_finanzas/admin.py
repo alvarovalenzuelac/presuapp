@@ -2,7 +2,7 @@ from django.contrib import admin
 
 # Register your models here.
 from django.contrib import admin
-from .models import Categoria, Presupuesto, Transaccion, Alerta
+from .models import Categoria, Presupuesto, Transaccion, Alerta, WhatsAppLog, WhatsAppSession
 
 # 1. Configuración para CATEGORÍA
 class CategoriaAdmin(admin.ModelAdmin):
@@ -48,6 +48,22 @@ class AlertaAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'usuario', 'leida', 'fecha_creacion')
     list_filter = ('leida', 'fecha_creacion')
     readonly_fields = ('fecha_creacion',) # Para que no se pueda editar la fecha manual
+
+@admin.register(WhatsAppLog)
+class WhatsAppLogAdmin(admin.ModelAdmin):
+    list_display = ('fecha_creacion', 'procesado', 'ver_mensaje')
+    list_filter = ('procesado', 'fecha_creacion')
+    
+    def ver_mensaje(self, obj):
+        # Intentamos mostrar el texto del mensaje para ver rápido qué es
+        try:
+            return obj.payload['entry'][0]['changes'][0]['value']['messages'][0]['text']['body']
+        except:
+            return "Otro tipo de mensaje"
+
+@admin.register(WhatsAppSession)
+class WhatsAppSessionAdmin(admin.ModelAdmin):
+    list_display = ('usuario', 'telefono', 'estado', 'ultimo_mensaje')
 
 # --- Registro final ---
 admin.site.register(Categoria, CategoriaAdmin)

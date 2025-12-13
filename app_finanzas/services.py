@@ -1,9 +1,12 @@
 import json
 import requests
+import logging
 from django.conf import settings
 from django.utils import timezone
 from usuarios.models import UsuarioCustom
 from app_finanzas.models import Transaccion, WhatsAppLog, WhatsAppSession, Categoria
+
+logger = logging.getLogger(__name__)
 
 class WhatsAppService:
     def __init__(self):
@@ -28,17 +31,19 @@ class WhatsAppService:
             mensaje = messages[0]
             telefono = mensaje.get('from') 
             
-            # 1. Identificar Usuario
-            try:
-                usuario = UsuarioCustom.objects.get(numero_telefono=telefono)
-            except UsuarioCustom.DoesNotExist:
-                # Si no existe, podrías enviar un mensaje de error opcional aquí
-                return
+            print(f"Mensaje recibido de: {telefono}")
 
+            usuario = UsuarioCustom.objects.filter(numero_telefono=telefono).first()
+            if not usuario:
+                print(f"Usuario NO encontrado para el número: {telefono}")
+                # Opcional: Probar buscando sin código de país si es necesario
+                return
+            print(f"Usuario identificado: {usuario.email}")
             # 2. Obtener Sesión
             sesion, created = WhatsAppSession.objects.get_or_create(
                 usuario=usuario, defaults={'telefono': telefono}
             )
+            
 
             # 3. Detectar qué escribió o presionó
             tipo_msg = mensaje.get('type')
@@ -52,6 +57,8 @@ class WhatsAppService:
                 elif int_data['type'] == 'list_reply':
                     texto = int_data['list_reply']['id']
 
+            print(f"Texto interpretado: {texto}")
+
             # 4. Comandos de Salida
             if texto.lower() in ['hola', 'menu', 'cancelar', 'inicio']:
                 self.resetear(sesion)
@@ -61,9 +68,13 @@ class WhatsAppService:
             # 5. Máquina de Estados
             self.manejar_flujo(sesion, texto, telefono)
 
+            log.procesado = True
+            log.save()
+
         except Exception as e:
             log.error = str(e)
             log.save()
+            print(f"Error crítico en WhatsAppService: {e}")
 
     def manejar_flujo(self, sesion, input_usuario, telefono):
         
@@ -72,12 +83,13 @@ class WhatsAppService:
                 sesion.estado = 'ESPERANDO_MONTO'
                 sesion.datos_temporales = {'tipo': 'GASTO'}
                 sesion.save()
-                self.enviar_mensaje(telefono, "💰 Ingresa el monto (solo números):")
+                self.enviar_mensaje(telefono, "Ingresa el monto (solo números):")
             elif input_usuario == 'BTN_VER_SALDO':
                 # Aquí podrías calcular saldo real
-                self.enviar_mensaje(telefono, "📊 Tu saldo es... (Próximamente)")
+                self.enviar_mensaje(telefono, "Tu saldo es... (Próximamente)")
             else:
                 self.enviar_mensaje(telefono, "Usa el menú para comenzar.")
+                self.enviar_menu(telefono, sesion.usuario.first_name)
 
         elif sesion.estado == 'ESPERANDO_MONTO':
             if input_usuario.isdigit():
@@ -88,7 +100,7 @@ class WhatsAppService:
                 sesion.save()
                 self.enviar_lista_categorias(telefono, sesion.usuario)
             else:
-                self.enviar_mensaje(telefono, "🔢 Por favor ingresa solo números.")
+                self.enviar_mensaje(telefono, "Por favor ingresa solo números.")
 
         elif sesion.estado == 'ESPERANDO_CATEGORIA':
             if input_usuario.startswith('cat_'):
@@ -104,7 +116,7 @@ class WhatsAppService:
                     categoria_id=cat_id,
                     descripcion="WhatsApp Bot"
                 )
-                self.enviar_mensaje(telefono, f"✅ Gasto de ${datos['monto']} guardado.")
+                self.enviar_mensaje(telefono, f"Gasto de ${datos['monto']} guardado.")
                 self.resetear(sesion)
             else:
                 self.enviar_mensaje(telefono, "Selecciona una categoría de la lista.")
@@ -153,3 +165,14 @@ class WhatsAppService:
             }
         }
         requests.post(self.api_url, headers=self.headers, json=data)
+    
+    def _enviar_api(self, data):
+        try:
+            response = requests.post(self.api_url, headers=self.headers, json=data)
+            # --- DIAGNÓSTICO: Ver si Meta aceptó el mensaje ---
+            if response.status_code not in [200, 201]:
+                print(f"Error al enviar a Meta ({response.status_code}): {response.text}")
+            else:
+                print(f"Mensaje enviado correctamente a Meta.")
+        except Exception as e:
+            print(f"Error de conexión enviando mensaje: {e}")
