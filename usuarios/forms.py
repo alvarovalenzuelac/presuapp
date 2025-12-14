@@ -1,47 +1,100 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import UsuarioCustom
+from django.core.validators import RegexValidator
 
-# Formulario para Registrarse (Hereda del estándar de Django pero usa tu modelo)
+
+solo_numeros = RegexValidator(r'^\d{8}$', 'Ingresa solo los 8 dígitos de tu número (Ej: 98765432).')
+
 class RegistroUsuarioForm(UserCreationForm):
-    # Añadimos email como obligatorio visualmente
-    email = forms.EmailField(required=True)
+    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'ejemplo@correo.com'}))
+    
+    # CAMBIO: Campo teléfono restringido
+    numero_telefono = forms.CharField(
+        max_length=8,
+        min_length=8,
+        required=True,
+        validators=[solo_numeros],
+        label="Teléfono Móvil",
+        help_text="Ingresa los 8 dígitos después del +569",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'placeholder': '12345678',
+            'type': 'tel',      # Activa teclado numérico en móviles
+            'pattern': '[0-9]*', # Refuerzo para móviles
+            'maxlength': '8'     # Límite visual HTML
+        })
+    )
 
     class Meta:
         model = UsuarioCustom
-        # Campos que el usuario llena al registrarse
-        fields = ['email'] 
-        widgets = {
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'ejemplo@correo.com'}),
-        }
+        fields = ['email', 'numero_telefono'] 
+
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.username = user.email 
+        user.username = user.email
         
+        # LOGICA PREFIJO: Si el usuario ingresó "12345678", guardamos "+56912345678"
+        telefono_limpio = self.cleaned_data['numero_telefono']
+        if telefono_limpio and not telefono_limpio.startswith('+'):
+            user.numero_telefono = f"+569{telefono_limpio}"
+            
         if commit:
             user.save()
         return user
 
-# Formulario para Editar Perfil (Sin contraseña)
+
 class EditarUsuarioForm(forms.ModelForm):
+    # Repetimos la validación visual
+    numero_telefono = forms.CharField(
+        max_length=8,
+        min_length=8,
+        required=True,
+        validators=[solo_numeros],
+        label="Teléfono Móvil",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'type': 'tel', 
+            'pattern': '[0-9]*',
+            'maxlength': '8'
+        })
+    )
+
     class Meta:
         model = UsuarioCustom
         fields = ['email', 'numero_telefono', 'first_name', 'last_name']
         labels = {
             'email': 'Correo Electrónico (No editable)',
-            'numero_telefono': 'Teléfono (WhatsApp)',
             'first_name': 'Nombre',
             'last_name': 'Apellido',
         }
         widgets = {
-            'numero_telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+56912345678'}),
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            # El widget de email lo configuramos abajo, pero le damos estilo base aquí
             'email': forms.TextInput(attrs={'class': 'form-control'}),
         }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Protegemos el email para que sea solo lectura
         if 'email' in self.fields:
             self.fields['email'].disabled = True
+        
+        # TRUCO PRO: Si el usuario ya tiene un número guardado (+569...), 
+        # se lo quitamos visualmente para que solo vea sus 8 dígitos al editar.
+        if self.instance.numero_telefono:
+            telefono_db = self.instance.numero_telefono
+            if telefono_db.startswith('+569'):
+                self.initial['numero_telefono'] = telefono_db[4:] # Quitamos los primeros 4 chars (+569)
+
+    # LOGICA PREFIJO AL GUARDAR EDICIÓN
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        telefono_limpio = self.cleaned_data['numero_telefono']
+        
+        # Volvemos a agregar el prefijo antes de ir a la BD
+        if telefono_limpio and not telefono_limpio.startswith('+'):
+            user.numero_telefono = f"+569{telefono_limpio}"
+            
+        if commit:
+            user.save()
+        return user

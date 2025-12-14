@@ -30,10 +30,9 @@ def registro_view(request):
         return redirect('dashboard')
         
     if request.method == 'POST':
-        form = RegistroUsuarioForm(request.POST)
+        form = RegistroUsuarioForm(request.POST) # El form ya hace la magia del +569
         if form.is_valid():
-            nuevo_usuario = form.save()
-
+            nuevo_usuario = form.save() # Aquí se ejecuta el save() modificado
             messages.success(request, f'Cuenta creada para {nuevo_usuario.email}. ¡Ahora puedes ingresar!')
             return redirect('login')
     else:
