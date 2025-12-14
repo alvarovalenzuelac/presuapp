@@ -21,8 +21,16 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-muted">{{ form.numero_telefono.label }}</label>
-                        {{ form.numero_telefono }}
+                        
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted">+569</span>
+                            {{ form.numero_telefono }}
+                        </div>
                         <div class="form-text">Usado para la integración con el Bot de WhatsApp.</div>
+                        
+                        {% if form.numero_telefono.errors %}
+                            <div class="text-danger small mt-1">{{ form.numero_telefono.errors.0 }}</div>
+                        {% endif %}
                     </div>
 
                     <div class="row">

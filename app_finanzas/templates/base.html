@@ -76,7 +76,7 @@
 
                 <a href="{% url 'perfil' %}" class="text-white me-3 text-decoration-none d-flex align-items-center">
                     <i class="bi bi-person-circle me-2"></i>
-                    <span class="d-none d-sm-inline">Hola, {{ user.username }}</span> </a>
+                    <span class="d-none d-sm-inline">Hola, {{ user.first_name|default:user.username }}</span> </a>
 
                 <form action="{% url 'logout' %}" method="post" class="d-inline">
                     {% csrf_token %}

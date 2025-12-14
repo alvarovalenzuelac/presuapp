@@ -13,7 +13,7 @@ class RegistroUsuarioForm(UserCreationForm):
     numero_telefono = forms.CharField(
         max_length=8,
         min_length=8,
-        required=True,
+        required=False,
         validators=[solo_numeros],
         label="Teléfono Móvil",
         help_text="Ingresa los 8 dígitos después del +569",
@@ -30,14 +30,32 @@ class RegistroUsuarioForm(UserCreationForm):
         model = UsuarioCustom
         fields = ['email', 'numero_telefono'] 
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Recorremos TODOS los campos (incluidos los de contraseña que hereda UserCreationForm)
+        for field_name, field in self.fields.items():
+            # Si el campo no tiene la clase form-control, se la agregamos
+            if 'class' not in field.widget.attrs:
+                field.widget.attrs['class'] = 'form-control'
+            else:
+                # Si ya tiene clases, le concatenamos form-control si no la tiene
+                if 'form-control' not in field.widget.attrs['class']:
+                    field.widget.attrs['class'] += ' form-control'
+
     def save(self, commit=True):
         user = super().save(commit=False)
         user.username = user.email
         
         # LOGICA PREFIJO: Si el usuario ingresó "12345678", guardamos "+56912345678"
         telefono_limpio = self.cleaned_data['numero_telefono']
-        if telefono_limpio and not telefono_limpio.startswith('+'):
-            user.numero_telefono = f"+569{telefono_limpio}"
+
+        if telefono_limpio:
+            if not telefono_limpio.startswith('+'):
+                user.numero_telefono = f"+569{telefono_limpio}"
+        else:
+            # IMPORTANTE: Si lo dejó vacío, guardamos None (NULL)
+            # Esto evita el error de "Ya existe un usuario con teléfono en blanco"
+            user.numero_telefono = None
             
         if commit:
             user.save()
