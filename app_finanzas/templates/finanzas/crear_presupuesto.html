@@ -89,6 +89,11 @@
                             <span class="input-group-text">$</span>
                             {{ form.monto_limite }}
                         </div>
+                        {% if form.monto_limite.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.monto_limite.errors.0 }}
+                            </div>
+                        {% endif %}
                     </div>
 
                     <div class="d-grid gap-2">

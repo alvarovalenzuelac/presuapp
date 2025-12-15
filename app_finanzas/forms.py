@@ -78,6 +78,19 @@ class TransaccionForm(forms.ModelForm):
                     categoria_padre=padre_actual
                 ).order_by('nombre')
 
+    def clean_monto(self):
+        monto = self.cleaned_data.get('monto')
+        
+        # Validamos que no sea negativo
+        if monto is not None and monto < 0:
+            # Opción A: Convertirlo a positivo automáticamente (Amigable)
+            # return abs(monto) 
+            
+            # Opción B: Mostrar error (Estricto - RECOMENDADO para evitar errores de dedo)
+            raise forms.ValidationError("El monto debe ser un valor positivo (ej: 25000).")
+            
+        return monto
+
 class CategoriaForm(forms.ModelForm):
     class Meta:
         model = Categoria
@@ -91,14 +104,48 @@ class CategoriaForm(forms.ModelForm):
             'categoria_padre': forms.Select(attrs={'class': 'form-select'}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, user, *args, **kwargs):
+        self.user = user  # Guardamos el usuario para usarlo en las validaciones
         super().__init__(*args, **kwargs)
-        # Filtramos el desplegable: Solo mostramos Categorías PADRES (las que no tienen padre)
-        # y que sean globales (usuario=None)
+        
+        # Filtramos el desplegable: Solo mostramos Categorías PADRES
         self.fields['categoria_padre'].queryset = Categoria.objects.filter(
-            categoria_padre=None, 
-            usuario=None
+            categoria_padre=None
+        ).filter(
+            Q(usuario=None) | Q(usuario=user)
         ).order_by('nombre')
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        nombre = cleaned_data.get('nombre')
+        categoria_padre = cleaned_data.get('categoria_padre')
+
+        # Solo validamos si el usuario ingresó un nombre
+        if nombre:
+            # Buscamos si ya existe una categoría con ese nombre...
+            duplicados = Categoria.objects.filter(
+                nombre__iexact=nombre,  # iexact: ignora mayúsculas/minúsculas
+                categoria_padre=categoria_padre # ...y que tenga el MISMO padre
+            ).filter(
+                # ...y que sea Global O del Usuario actual
+                Q(usuario=None) | Q(usuario=self.user)
+            )
+
+            # Si estamos editando (no creando), excluimos la categoría actual de la búsqueda
+            if self.instance.pk:
+                duplicados = duplicados.exclude(pk=self.instance.pk)
+
+            if duplicados.exists():
+                # Preparamos el mensaje de error solicitado
+                if categoria_padre:
+                    msg = f'La categoría "{nombre}" ya existe dentro de "{categoria_padre.nombre}".'
+                else:
+                    msg = f'Ya existe una categoría principal llamada "{nombre}".'
+                
+                # Agregamos el error al campo 'nombre' para que salga en rojo en el HTML
+                self.add_error('nombre', msg)
+        
+        return cleaned_data
 
 class PresupuestoForm(forms.ModelForm):
     # Selector de Meses con nombres en español
@@ -125,7 +172,7 @@ class PresupuestoForm(forms.ModelForm):
         model = Presupuesto
         fields = ['nombre', 'monto_limite', 'mes', 'anio', 'categorias']
         widgets = {
-            'monto_limite': forms.NumberInput(attrs={'class': 'form-control'}),
+            'monto_limite': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'step': '1'}),
         }
 
     def __init__(self, user, *args, **kwargs):
@@ -142,3 +189,11 @@ class PresupuestoForm(forms.ModelForm):
         self.fields['categorias'].queryset = Categoria.objects.filter(
             Q(usuario=None) | Q(usuario=user)
         ).order_by('nombre')
+    
+    def clean_monto_limite(self):
+        monto = self.cleaned_data.get('monto_limite')
+        
+        if monto is not None and monto < 0:
+            raise forms.ValidationError("El presupuesto debe ser un valor positivo.")
+            
+        return monto

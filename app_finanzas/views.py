@@ -123,15 +123,17 @@ def agregar_gasto_view(request):
 def categorias_view(request):
     # LÓGICA PARA CREAR NUEVA SUBCATEGORÍA
     if request.method == 'POST':
-        form = CategoriaForm(request.POST)
+        # CAMBIO AQUÍ: Pasamos request.user como primer argumento
+        form = CategoriaForm(request.user, request.POST) 
         if form.is_valid():
             nueva_cat = form.save(commit=False)
-            nueva_cat.usuario = request.user # Asignamos al usuario actual (es privada)
+            nueva_cat.usuario = request.user 
             nueva_cat.save()
             messages.success(request, f'Subcategoría "{nueva_cat.nombre}" creada correctamente.')
             return redirect('categorias')
     else:
-        form = CategoriaForm()
+        # CAMBIO AQUÍ: También al inicializar vacío
+        form = CategoriaForm(request.user)
 
     # LÓGICA PARA LISTAR (Mostrar padres e hijos)
     # Traemos solo los PADRES globales
@@ -169,12 +171,13 @@ def editar_categoria_view(request, id):
 
     if request.method == 'POST':
         form = CategoriaForm(request.POST, instance=categoria)
+        form = CategoriaForm(request.user, request.POST, instance=categoria)
         if form.is_valid():
             form.save()
             messages.success(request, 'Categoría actualizada correctamente.')
             return redirect('categorias')
     else:
-        form = CategoriaForm(instance=categoria)
+        form = CategoriaForm(request.user, instance=categoria)
 
     return render(request, 'finanzas/editar_categoria.html', {'form': form})
 

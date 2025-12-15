@@ -27,6 +27,11 @@
                             <span class="input-group-text">$</span>
                             {{ form.monto }}
                         </div>
+                        {% if form.monto.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.monto.errors.0 }}
+                            </div>
+                        {% endif %}
                     </div>
 
                     <div class="row">
