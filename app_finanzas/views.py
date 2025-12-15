@@ -68,13 +68,36 @@ def mis_gastos_view(request):
         fecha__range=[inicio, fin]
     ).order_by('-fecha')
     
+    categorias_disponibles = Categoria.objects.filter(
+        Q(usuario=None) | Q(usuario=request.user)
+    ).order_by('categoria_padre__nombre', 'nombre')
+
+    # Verificamos si hay una selección en la URL (?categoria=5)
+    categoria_id = request.GET.get('categoria')
+
+    if categoria_id:
+        # Filtramos: Coincidencia exacta O hijos de la categoría seleccionada
+        # (Así si seleccionas "Comida", te muestra también "Supermercado")
+        transacciones = transacciones.filter(
+            Q(categoria_id=categoria_id) | 
+            Q(categoria__categoria_padre_id=categoria_id)
+        )
+        categoria_id = int(categoria_id) # Convertir a int para marcar el selected en HTML
+
+    # Ordenamos final
+    transacciones = transacciones.order_by('-fecha')
+
     context = {
         'transacciones': transacciones,
         'filtro_actual': filtro,
-        'fecha_inicio': inicio.strftime('%Y-%m-%d'), # Para repoblar el input date
+        'fecha_inicio': inicio.strftime('%Y-%m-%d'), 
         'fecha_fin': fin.strftime('%Y-%m-%d'),
+        # Nuevas variables al contexto
+        'categorias_disponibles': categorias_disponibles,
+        'categoria_seleccionada': categoria_id
     }
     return render(request, 'finanzas/mis_gastos.html', context)
+
 
 @login_required
 def agregar_gasto_view(request):
