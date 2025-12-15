@@ -68,23 +68,26 @@ def mis_gastos_view(request):
         fecha__range=[inicio, fin]
     ).order_by('-fecha')
     
-    categorias_disponibles = Categoria.objects.filter(
-        Q(usuario=None) | Q(usuario=request.user)
-    ).order_by('categoria_padre__nombre', 'nombre')
+    categorias_jerarquia = Categoria.objects.filter(
+        Q(usuario=None) | Q(usuario=request.user),
+        categoria_padre=None # Solo padres
+    ).prefetch_related('subcategorias').order_by('nombre')
 
     # Verificamos si hay una selección en la URL (?categoria=5)
     categoria_id = request.GET.get('categoria')
 
     if categoria_id:
-        # Filtramos: Coincidencia exacta O hijos de la categoría seleccionada
-        # (Así si seleccionas "Comida", te muestra también "Supermercado")
+        # Filtramos: Coincidencia exacta (si eligió subcategoría o un padre directo)
+        # O hijos de la categoría seleccionada (si eligió un padre)
         transacciones = transacciones.filter(
             Q(categoria_id=categoria_id) | 
             Q(categoria__categoria_padre_id=categoria_id)
         )
-        categoria_id = int(categoria_id) # Convertir a int para marcar el selected en HTML
+        try:
+            categoria_id = int(categoria_id) 
+        except:
+            categoria_id = None
 
-    # Ordenamos final
     transacciones = transacciones.order_by('-fecha')
 
     context = {
@@ -92,8 +95,10 @@ def mis_gastos_view(request):
         'filtro_actual': filtro,
         'fecha_inicio': inicio.strftime('%Y-%m-%d'), 
         'fecha_fin': fin.strftime('%Y-%m-%d'),
-        # Nuevas variables al contexto
-        'categorias_disponibles': categorias_disponibles,
+        
+        # CAMBIO: Enviamos la jerarquía en vez de la lista plana
+        'categorias_jerarquia': categorias_jerarquia, 
+        
         'categoria_seleccionada': categoria_id
     }
     return render(request, 'finanzas/mis_gastos.html', context)
