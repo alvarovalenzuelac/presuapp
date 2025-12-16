@@ -130,7 +130,22 @@ class DashboardDataView(APIView):
         # 1. TOTALES (Tarjetas)
         ingresos = transacciones.filter(tipo='INGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
         gastos = transacciones.filter(tipo='GASTO').aggregate(Sum('monto'))['monto__sum'] or 0
-        saldo = ingresos - gastos
+
+        presupuesto_global = 0
+        presu_obj = Presupuesto.objects.filter(
+            usuario=usuario,
+            mes=mes,
+            anio=anio,
+            categorias=None # Esto define al global
+        ).first()
+        
+        if presu_obj:
+            presupuesto_global = presu_obj.monto_limite
+
+        # El saldo ahora es: Meta Global - Gastos Totales
+        saldo_disponible = presupuesto_global - gastos
+
+    
 
         # 2. DATOS PARA GRÁFICO DE TORTA (Gastos por Categoría)
         # Agrupamos manualmente para simplificar la respuesta JSON
@@ -168,10 +183,11 @@ class DashboardDataView(APIView):
 
         return Response({
             "totales": {
-                "ingresos": ingresos,
+                "ingresos": ingresos, # Lo mandamos por si quieres usarlo luego
                 "gastos": gastos,
-                "saldo": saldo
+                "presupuesto_global": presupuesto_global, # NUEVO
+                "saldo": saldo_disponible # ACTUALIZADO (Meta - Gastos)
             },
-            "grafico_torta": lista_torta,
-            "grafico_linea": lista_dias
+            "grafico_torta": lista_torta, # Asegúrate de tener las variables lista_torta
+            "grafico_linea": lista_dias   # y lista_dias definidas como antes
         })
