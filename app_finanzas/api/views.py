@@ -1,6 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q
+from django.db.models import Q,Sum
+from django.db.models.functions import ExtractDay
 from app_finanzas.models import Categoria, Transaccion, Presupuesto
 from .serializers import CategoriaSerializer, TransaccionSerializer, PresupuestoSerializer
 from app_finanzas.models import WhatsAppLog
@@ -12,6 +13,8 @@ from app_finanzas.services import WhatsAppService
 import logging
 from django.conf import settings
 from django.http import HttpResponse
+from django.utils import timezone
+
 
 # VISTA API: CATEGORÍAS
 class CategoriaViewSet(viewsets.ModelViewSet):
@@ -105,3 +108,70 @@ class WhatsAppWebhookView(APIView):
         except Exception as e:
             logger.error(f"Error en Webhook: {e}")
             return Response({"status": "error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class DashboardDataView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        usuario = request.user
+        hoy = timezone.now()
+        
+        # Filtros de fecha (por defecto mes actual)
+        mes = int(request.query_params.get('mes', hoy.month))
+        anio = int(request.query_params.get('anio', hoy.year))
+
+        # Transacciones del mes
+        transacciones = Transaccion.objects.filter(
+            usuario=usuario,
+            fecha__month=mes,
+            fecha__year=anio
+        )
+
+        # 1. TOTALES (Tarjetas)
+        ingresos = transacciones.filter(tipo='INGRESO').aggregate(Sum('monto'))['monto__sum'] or 0
+        gastos = transacciones.filter(tipo='GASTO').aggregate(Sum('monto'))['monto__sum'] or 0
+        saldo = ingresos - gastos
+
+        # 2. DATOS PARA GRÁFICO DE TORTA (Gastos por Categoría)
+        # Agrupamos manualmente para simplificar la respuesta JSON
+        gastos_query = transacciones.filter(tipo='GASTO').select_related('categoria')
+        data_torta = {}
+        
+        for g in gastos_query:
+            # Usamos el nombre del Padre si existe, o el nombre de la categoría
+            nombre = "Otros"
+            if g.categoria:
+                if g.categoria.categoria_padre:
+                    nombre = g.categoria.categoria_padre.nombre
+                else:
+                    nombre = g.categoria.nombre
+            
+            data_torta[nombre] = data_torta.get(nombre, 0) + float(g.monto)
+
+        # Formato lista para Flutter: [{"name": "Comida", "value": 5000}, ...]
+        lista_torta = [{"name": k, "value": v} for k, v in data_torta.items()]
+
+        # 3. DATOS PARA GRÁFICO DE LÍNEA (Gastos por Día)
+        gastos_dia = transacciones.filter(tipo='GASTO')\
+            .annotate(dia=ExtractDay('fecha'))\
+            .values('dia')\
+            .annotate(total=Sum('monto'))\
+            .order_by('dia')
+            
+        # Creamos un mapa de días {1: 0, 2: 500, ... 31: 0}
+        mapa_dias = {d: 0 for d in range(1, 32)}
+        for item in gastos_dia:
+            mapa_dias[item['dia']] = float(item['total'])
+            
+        # Formato lista simple para el gráfico: [0, 500, 200, 0, ...]
+        lista_dias = [mapa_dias[d] for d in sorted(mapa_dias.keys())]
+
+        return Response({
+            "totales": {
+                "ingresos": ingresos,
+                "gastos": gastos,
+                "saldo": saldo
+            },
+            "grafico_torta": lista_torta,
+            "grafico_linea": lista_dias
+        })
