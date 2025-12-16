@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from app_finanzas.models import Categoria, Transaccion, Presupuesto
-from django.db.models import Q
+from django.db.models import Sum, Q
 
 # 1. SERIALIZER DE CATEGORÍAS
 class CategoriaSerializer(serializers.ModelSerializer):
@@ -62,11 +62,46 @@ class PresupuestoSerializer(serializers.ModelSerializer):
     # Serializamos las categorías anidadas para ver sus nombres en el detalle
     # read_only=True significa que para CREAR usamos IDs, pero al LEER vemos el objeto completo
     categorias_detalle = CategoriaSerializer(source='categorias', many=True, read_only=True)
+
+    gastado = serializers.SerializerMethodField()
+    porcentaje = serializers.SerializerMethodField()
     
     class Meta:
         model = Presupuesto
-        fields = ['id', 'nombre', 'monto_limite', 'mes', 'anio', 'categorias', 'categorias_detalle']
+        fields = ['id', 'nombre', 'monto_limite', 'mes', 'anio', 'categorias', 'categorias_detalle','gastado', 'porcentaje']
+    
+    def get_gastado(self, obj):
+        # 1. Filtramos gastos del usuario y del periodo del presupuesto
+        gastos = Transaccion.objects.filter(
+            usuario=obj.usuario,
+            tipo='GASTO',
+            fecha__year=obj.anio,
+            fecha__month=obj.mes
+        )
         
+        # 2. Filtramos por categorías asociadas (si existen)
+        cats = obj.categorias.all()
+        if cats.exists():
+            gastos = gastos.filter(
+                Q(categoria__in=cats) | 
+                Q(categoria__categoria_padre__in=cats)
+            )
+            
+        # 3. Sumamos
+        total = gastos.aggregate(Sum('monto'))['monto__sum'] or 0
+        return total
+
+    def get_porcentaje(self, obj):
+        limit = obj.monto_limite
+        if limit <= 0:
+            return 0
+        
+        # Reutilizamos la lógica de gasto (o llamamos a self.get_gastado(obj))
+        # Para eficiencia, aquí repetimos la llamada rápida o calculamos sobre el valor ya obtenido
+        gastado = self.get_gastado(obj) 
+        
+        return int((gastado * 100) / limit)
+
     def create(self, validated_data):
         usuario = self.context['request'].user
         validated_data['usuario'] = usuario
